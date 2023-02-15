@@ -1,4 +1,5 @@
-﻿using System;
+﻿using BackupAppService;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -12,9 +13,14 @@ namespace BackupApp
 {
     public partial class Main : Form
     {
+        SqliteReaderService DataSvc = new SqliteReaderService();
         public Main()
         {
             InitializeComponent();
+            DataTable dt = DataSvc.ReadAsDataTable(@"select * from SETTING;");
+            dataGridView1.Columns.Clear();
+            dataGridView1.DataSource = dt;
+
         }
     }
 }
