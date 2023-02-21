@@ -18,9 +18,10 @@ namespace BackupApp
         {
             InitializeComponent();
             DataTable dt = DataSvc.ReadAsDataTable(@"select * from SETTING;");
-            dataGridView1.Columns.Clear();
-            dataGridView1.DataSource = dt;
+            //dataGridView1.Columns.Clear();
+            //dataGridView1.DataSource = dt;
 
         }
+
     }
 }
