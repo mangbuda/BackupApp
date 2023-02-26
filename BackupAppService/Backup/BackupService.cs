@@ -3,8 +3,12 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using System.Net.Mail;
+using System.Net;
 using System.Runtime.InteropServices;
 using System.Security.Policy;
+using System.Security.Cryptography;
+using System.Xml.Linq;
 
 namespace BackupAppService.BackupService
 {
@@ -39,6 +43,15 @@ namespace BackupAppService.BackupService
                     string BackupPathSvrLoginPwd = row["BackupPathSvrLoginPwd"].ToString();
                     long BackupTaskId = Convert.ToInt64(row["BackupTaskId"].ToString());
                     long SettingId = Convert.ToInt64(row["SettingId"].ToString());
+
+                    Email email = new Email();
+                    email.SmtpSvr = row["SmtpSvr"].ToString();
+                    email.SmtpPort = row["SmtpPort"].ToString();
+                    email.SmtpNotifEmailFrom = row["SmtpNotifEmailFrom"].ToString();
+                    email.SmtpNotifEmailTo = row["SmtpNotifEmailFrom"].ToString();
+                    email.SmtpLoginUsername = row["SmtpLoginUsername"].ToString();
+                    email.SmtpLoginPwd = row["SmtpLoginPwd"].ToString();
+                    email.IsSslForSmtp = row["IsSslForSmtp"].ToString();
 
                     try
                     {
@@ -94,8 +107,11 @@ namespace BackupAppService.BackupService
                             TaskStatus = "S"
                         };
 
-                        //send email
-
+                        #region send email
+                        DataTable dtResForEmail = backupHistService.GetSummaryBackupHistByBackupHistId(BackupTaskId);
+                        string html = GetHtmlForEmail(dtResForEmail);
+                        SendEmail(html, email);
+                        #endregion
                         backupTaskService.UpdateBackupTask(backupTask);
                     }
                     catch (Exception ex)
@@ -323,6 +339,118 @@ namespace BackupAppService.BackupService
                 sqlCon.Close();
             }
         }
+
+        public string GetHtmlForEmail(DataTable dtSource)
+        {
+            try
+            {
+                string messageBody = "<font>The following are the records: </font><br><br>";
+                if (dtSource.Rows.Count == 0) return messageBody;
+                string htmlTableStart = "<table style=\"border-collapse:collapse; text-align:center;\" >";
+                string htmlTableEnd = "</table>";
+                string htmlHeaderRowStart = "<tr style=\"background-color:#6FA1D2; color:#ffffff;\">";
+                string htmlHeaderRowEnd = "</tr>";
+                string htmlTrStart = "<tr style=\"color:#555555;\">";
+                string htmlTrEnd = "</tr>";
+                string htmlTdStart = "<td style=\" border-color:#5c87b2; border-style:solid; border-width:thin; padding: 5px;\">";
+                string htmlTdEnd = "</td>";
+                messageBody += htmlTableStart;
+                messageBody += htmlHeaderRowStart;
+                messageBody += htmlTdStart + "Hostname DB Server" + htmlTdEnd;
+                messageBody += htmlTdStart + "Backup Size" + htmlTdEnd;
+                messageBody += htmlTdStart + "Start Time" + htmlTdEnd;
+                messageBody += htmlTdStart + "End Time" + htmlTdEnd;
+                messageBody += htmlTdStart + "Backup Status" + htmlTdEnd;
+                messageBody += htmlTdStart + "Remarks" + htmlTdEnd;
+                messageBody += htmlHeaderRowEnd;
+                for (int i = 0; i <= dtSource.Rows.Count - 1; i++)
+                {
+                    messageBody = messageBody + htmlTrStart;
+                    messageBody = messageBody + htmlTdStart + dtSource.Rows[i]["HostnameDbSvr"].ToString() + htmlTdEnd;
+                    messageBody = messageBody + htmlTdStart + SizeSuffix(Convert.ToInt64(dtSource.Rows[i]["BackupSize"].ToString())) + htmlTdEnd;
+                    messageBody = messageBody + htmlTdStart + dtSource.Rows[i]["BackupStartTime"].ToString() + htmlTdEnd;
+                    messageBody = messageBody + htmlTdStart + dtSource.Rows[i]["BackupFinishTime"].ToString() + htmlTdEnd;
+                    messageBody = messageBody + htmlTdStart + "COMPLETE" + htmlTdEnd;
+                    messageBody = messageBody + htmlTdStart + (dtSource.Rows[i]["BackupStatus"].ToString() == "1"?"Backup Completed Successfully":"Backup Failed") + htmlTdEnd;
+
+                    messageBody = messageBody + htmlTrEnd;
+                }
+                messageBody = messageBody + htmlTableEnd;
+                return messageBody;
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+
+        private void SendEmail(string htmlString, Email email)
+        {
+            try
+            {
+                MailMessage message = new MailMessage();
+                SmtpClient smtp = new SmtpClient();
+                message.From = new MailAddress(email.SmtpNotifEmailFrom);
+                message.To.Add(new MailAddress(email.SmtpNotifEmailTo));
+                message.Subject = "Backup Job Report";
+                message.IsBodyHtml = true;
+                message.Body = htmlString;
+                smtp.Port = Convert.ToInt32(email.SmtpPort);
+                smtp.Host = email.SmtpSvr;
+                smtp.EnableSsl = true;
+                smtp.UseDefaultCredentials = false;
+                smtp.Credentials = new NetworkCredential(email.SmtpNotifEmailFrom, email.SmtpLoginPwd);
+                smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
+                smtp.Send(message);
+            }
+            catch (Exception ex) 
+            {
+                throw ex;
+            }
+        }
+
+        static readonly string[] SizeSuffixes =
+                   { "bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB" };
+        static string SizeSuffix(Int64 value, int decimalPlaces = 1)
+        {
+            if (decimalPlaces < 0) { throw new ArgumentOutOfRangeException("decimalPlaces"); }
+            if (value < 0) { return "-" + SizeSuffix(-value, decimalPlaces); }
+            if (value == 0) { return string.Format("{0:n" + decimalPlaces + "} bytes", 0); }
+
+            // mag is 0 for bytes, 1 for KB, 2, for MB, etc.
+            int mag = (int)Math.Log(value, 1024);
+
+            // 1L << (mag * 10) == 2 ^ (10 * mag) 
+            // [i.e. the number of bytes in the unit corresponding to mag]
+            decimal adjustedSize = (decimal)value / (1L << (mag * 10));
+
+            // make adjustment when the value is large enough that
+            // it would round up to 1000 or more
+            if (Math.Round(adjustedSize, decimalPlaces) >= 1000)
+            {
+                mag += 1;
+                adjustedSize /= 1024;
+            }
+
+            return string.Format("{0:n" + decimalPlaces + "} {1}",
+                adjustedSize,
+                SizeSuffixes[mag]);
+        }
         #endregion
     }
 }
+
+//MailMessage message = new MailMessage();
+//SmtpClient smtp = new SmtpClient();
+//message.From = new MailAddress("FromMailAddress");
+//message.To.Add(new MailAddress("ToMailAddress"));
+//message.Subject = "Test";
+//message.IsBodyHtml = true; //to make message body as html
+//message.Body = htmlString;
+//smtp.Port = 587;
+//smtp.Host = "smtp.gmail.com"; //for gmail host
+//smtp.EnableSsl = true;
+//smtp.UseDefaultCredentials = false;
+//smtp.Credentials = new NetworkCredential("FromMailAddress", "password");
+//smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
+//smtp.Send(message);
