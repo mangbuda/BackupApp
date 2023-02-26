@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using System.Security.Cryptography;
 
 namespace BackupAppService.BackupService
 {
@@ -61,6 +62,32 @@ namespace BackupAppService.BackupService
                 sqlite_cmd.Parameters.AddWithValue("@BackupStatus)", backupHists[i].BackupStatus);
                 sqliteReaderService.ExecuteQuery(sqlite_cmd);
             }
+        }
+
+        public DataTable GetSummaryBackupHistByBackupHistId(long backupTaskId)
+        {
+            string cmdGetSummBackupHist = @"
+                SELECT 
+                BACKUP_TASK_ID AS BackupTaskId
+                ,MIN(BACKUP_START_TIME) AS BackupStartTime
+                ,MAX(BACKUP_FINISIH_TIME) AS BackupFinishTime
+                ,SUM(BACKUP_SIZE) AS BackupSize 
+                ,MAX(BT.BACKUP_STATUS) AS BackupStatus
+                ,MAX(HOSTNAME_DB_SVR) AS HostnameDbSvr
+                FROM BACKUP_HIST BT
+                JOIN SETTING S ON BT.SETTING_ID = S.SETTING_ID
+                WHERE BT.BACKUP_TASK_ID = @backupTaskId 
+                GROUP BY BACKUP_TASK_ID
+            "
+            ;
+
+            DataTable dtRes = null;
+            SQLiteCommand sqlite_cmd = new SQLiteCommand();
+            sqlite_cmd.CommandText = cmdGetSummBackupHist;
+            sqlite_cmd.Parameters.AddWithValue("@backupTaskId", backupTaskId);
+
+            dtRes = sqliteReaderService.ReadAsDataTable(sqlite_cmd);
+            return dtRes;
         }
     }
 }

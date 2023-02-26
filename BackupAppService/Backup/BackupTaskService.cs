@@ -11,7 +11,7 @@ namespace BackupAppService.BackupService
 {
     public class BackupTaskService : IBackupTaskService
     {
-        
+
         private readonly ISqliteReaderService sqliteReaderService;
         private readonly IBackupLogService backupLogService;
 
@@ -20,7 +20,7 @@ namespace BackupAppService.BackupService
             IBackupLogService backupLogService)
         {
             this.sqliteReaderService = sqliteReaderService;
-            this.backupLogService = backupLogService;   
+            this.backupLogService = backupLogService;
         }
 
         /// <summary>
@@ -43,9 +43,9 @@ namespace BackupAppService.BackupService
                         GROUP BY UUID
                      )
             )";
-            int result = sqliteReaderService.ExecuteQuery(cmdUpdNextBackupDate);
+            Tuple<int, long> result = sqliteReaderService.ExecuteQuery(cmdUpdNextBackupDate);
 
-            if (result > 0)
+            if (result.Item1 > 0)
             {
                 string cmdInsBackupTask = @"
                 INSERT INTO BACKUP_TASK 
@@ -63,7 +63,86 @@ namespace BackupAppService.BackupService
                     WHERE IS_ACTIVE = 1
                     GROUP BY UUID
                  )";
-                sqliteReaderService.ExecuteQuery(cmdInsBackupTask);
+                Tuple<int, long> resultAddBackupTask = sqliteReaderService.ExecuteQuery(cmdInsBackupTask);
+
+                if (resultAddBackupTask.Item1 > 0)
+                {
+                    //add backup task setting
+                    string cmdInsBackupTaskSetting = @"
+                    INSERT INTO BACKUP_TASK_SETTING (
+                                    BACKUP_TASK_ID,
+                                    SETTING_ID,
+                                    UUID,
+                                    BACKUP_STORE_PERIOD_TYPE,
+                                    BACKUP_STORE_NUM_DAYS,
+                                    BACKUP_PATH_SVR,
+                                    BACKUP_PATH_SVR_LOGIN_USERNAME,
+                                    BACKUP_PATH_SVR_LOGIN_PWD,
+                                    DB_SVR,
+                                    DB_SVR_LOGIN_USERNAME,
+                                    DB_SVR_LOGIN_PWD,
+                                    SMTP_SVR,
+                                    SMTP_PORT,
+                                    IS_SSL_FOR_SMTP,
+                                    SMTP_LOGIN_USERNAME,
+                                    SMTP_LOGIN_PWD,
+                                    BACKUP_TIME,
+                                    SMTP_NOTIF_EMAIL_FROM,
+                                    SMTP_NOTIF_EMAIL_TO,
+                                    LAST_BACKUP_DATE,
+                                    NEXT_BACKUP_DATE,
+                                    BACKUP_STATUS,
+                                    IS_ACTIVE,
+                                    VERSION,
+                                    DB_TYPE,
+                                    IS_DELETE,
+                                    DTM_CRT,
+                                    DTM_UPD,
+                                    USR_CRT,
+                                    USR_UPD,
+                                    IS_BACKUP_INPROCESS
+                                )
+                                SELECT 
+                                   BT.BACKUP_TASK_ID,
+                                   S.SETTING_ID,
+                                   S.UUID,
+                                   S.BACKUP_STORE_PERIOD_TYPE,
+                                   S.BACKUP_STORE_NUM_DAYS,
+                                   S.BACKUP_PATH_SVR,
+                                   S.BACKUP_PATH_SVR_LOGIN_USERNAME,
+                                   S.BACKUP_PATH_SVR_LOGIN_PWD,
+                                   S.DB_SVR,
+                                   S.DB_SVR_LOGIN_USERNAME,
+                                   S.DB_SVR_LOGIN_PWD,
+                                   S.SMTP_SVR,
+                                   S.SMTP_PORT,
+                                   S.IS_SSL_FOR_SMTP,
+                                   S.SMTP_LOGIN_USERNAME,
+                                   S.SMTP_LOGIN_PWD,
+                                   S.BACKUP_TIME,
+                                   S.SMTP_NOTIF_EMAIL_FROM,
+                                   S.SMTP_NOTIF_EMAIL_TO,
+                                   S.LAST_BACKUP_DATE,
+                                   S.NEXT_BACKUP_DATE,
+                                   S.BACKUP_STATUS,
+                                   S.IS_ACTIVE,
+                                   S.VERSION,
+                                   S.DB_TYPE,
+                                   S.IS_DELETE,
+                                   S.DTM_CRT,
+                                   S.DTM_UPD,
+                                   S.USR_CRT,
+                                   S.USR_UPD,
+                                   S.IS_BACKUP_INPROCESS
+                              FROM SETTING S
+                              JOIN BACKUP_TASK BT ON BT.SETTING_ID = S.SETTING_ID
+                              WHERE BT.BACKUP_TASK_ID = @backupTaskId
+                    ";
+                    SQLiteCommand sqlite_cmd = new SQLiteCommand();
+                    sqlite_cmd.CommandText = cmdInsBackupTaskSetting;
+                    sqlite_cmd.Parameters.AddWithValue("@backupTaskId", resultAddBackupTask.Item2);
+                    sqliteReaderService.ExecuteQuery(sqlite_cmd);
+                }
             }
         }
 
@@ -102,7 +181,7 @@ namespace BackupAppService.BackupService
             ,S.VERSION AS Version
             ,S.SETTING_ID AS SettingId
             FROM BACKUP_TASK BT
-            JOIN SETTING S ON BT.SETTING_ID = S.SETTING_ID
+            JOIN BACKUP_TASK_SETTING S ON BT.SETTING_ID = S.SETTING_ID
             WHERE TASK_STATUS IN('N')
             AND DATETIME(BT.BACKUP_TIME) >= DATETIME('now')
             LIMIT 1
