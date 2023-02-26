@@ -78,6 +78,7 @@ namespace BackupAppService
         public DataTable ReadAsDataTable(string sqlComand)
         {
             DataTable dt = new DataTable();
+          
             SQLiteDataReader sqlite_datareader;
             SQLiteConnection sqlite_conn = new SQLiteConnection(SqlConnection);
             sqlite_conn.Open();
@@ -87,7 +88,9 @@ namespace BackupAppService
             sqlite_cmd = sqlite_conn.CreateCommand();
             sqlite_cmd.CommandText = sqlComand;
             sqlite_datareader = sqlite_cmd.ExecuteReader();
+            DataTable dt2 = sqlite_datareader.GetSchemaTable();
             dt.Load(sqlite_datareader);
+
             sqlite_conn.Close();
             //}
             //catch (Exception e)
