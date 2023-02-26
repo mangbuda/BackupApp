@@ -31,4 +31,15 @@ namespace BackupAppService.Model
         public string Version { get; set; }
 
     }
+
+    public class Email
+    {
+        public string SmtpSvr { get; set; }
+        public string SmtpPort { get; set; }
+        public string IsSslForSmtp { get; set; }
+        public string SmtpLoginUsername { get; set; }
+        public string SmtpLoginPwd { get; set; }
+        public string SmtpNotifEmailFrom { get; set; }
+        public string SmtpNotifEmailTo { get; set; }
+    }
 }
