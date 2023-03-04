@@ -14,6 +14,7 @@ namespace BackupAppService
 {
     public class SqliteReaderService : ISqliteReaderService
     {
+        //public static string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         public static string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
         public static string dbFolderPath = Path.Combine(appDataPath, "BackupApp", "Resource");
         public static string dbFilePath = Path.Combine(dbFolderPath, "Data.db");

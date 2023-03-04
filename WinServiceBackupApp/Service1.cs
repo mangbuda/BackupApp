@@ -14,6 +14,7 @@ namespace WinServiceBackupApp
     {
         private Timer _timer;
         private IHost _host;
+        private DateTime _lastRunDate;
 
         public Service1()
         {
@@ -28,12 +29,19 @@ namespace WinServiceBackupApp
             _timer.Elapsed += new ElapsedEventHandler(TimerElapsed);
             _timer.Enabled = true;
 
+            _lastRunDate = DateTime.Now.Date;
+
             RunApplication();
         }
 
         private void TimerElapsed(object sender, ElapsedEventArgs e)
         {
-            // Call your existing method here
+
+            if (DateTime.Now.Date != _lastRunDate)
+            {
+                ResetFlagFunction(_host.Services);
+            }
+
             RunApplication();
         }
 
@@ -54,6 +62,18 @@ namespace WinServiceBackupApp
 
             CreateTaskFunction(_host.Services);
             BackupFunction(_host.Services);
+        }
+
+        public static void ResetFlagFunction(IServiceProvider services)
+        {
+            using (var serviceScope = services.CreateScope())
+            {
+                var provider = serviceScope.ServiceProvider;
+
+                var task = provider.GetRequiredService<IBackupService>();
+
+                task.ResetFlagIsBackupInProcess();
+            }
         }
 
         public static void CreateTaskFunction(IServiceProvider services)

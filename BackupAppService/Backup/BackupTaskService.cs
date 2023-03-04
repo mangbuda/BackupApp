@@ -31,7 +31,8 @@ namespace BackupAppService.BackupService
             string cmdUpdNextBackupDate = @"
             UPDATE SETTING
             SET LAST_BACKUP_DATE = NEXT_BACKUP_DATE, -- FIX
-            NEXT_BACKUP_DATE = strftime('%Y-%m-%dT%H:%M:%fZ', DATETIME((CASE WHEN NEXT_BACKUP_DATE IS NULL THEN BACKUP_TIME ELSE NEXT_BACKUP_DATE END), '+1 days'))
+            NEXT_BACKUP_DATE = strftime('%Y-%m-%dT'||substr(BACKUP_TIME,12)||':%fZ', 'now', 'localtime'),
+            IS_BACKUP_INPROCESS = '1'            
             WHERE EXISTS (
                 SELECT S.*
                 FROM SETTING S
@@ -42,7 +43,9 @@ namespace BackupAppService.BackupService
                         WHERE IS_ACTIVE = 1
                         GROUP BY UUID
                      )
-            )";
+            )
+            AND (IS_BACKUP_INPROCESS = '0' OR IS_BACKUP_INPROCESS IS NULL OR IS_BACKUP_INPROCESS = '')
+            ";
             Tuple<int, long> result = sqliteReaderService.ExecuteQuery(cmdUpdNextBackupDate);
 
             //if (result.Item1 > 0)
@@ -183,9 +186,9 @@ namespace BackupAppService.BackupService
             FROM BACKUP_TASK BT
             JOIN BACKUP_TASK_SETTING S ON BT.SETTING_ID = S.SETTING_ID
             WHERE TASK_STATUS IN('N')
-            AND DATETIME(BT.BACKUP_TIME) >= DATETIME('now')
+            --AND DATETIME(BT.BACKUP_TIME) <= DATETIME('now')
             LIMIT 1
-            ",//untuk keperluan debugging dibuat >=, harusnya <=
+            ",//untuk keperluan debugging dicomment
 
             @"UPDATE BACKUP_TASK
             SET TASK_STATUS = 'R'

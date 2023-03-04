@@ -3,5 +3,6 @@
     public interface IBackupService
     {
         void Backup();
+        void ResetFlagIsBackupInProcess();
     }
 }

@@ -9,6 +9,7 @@ using System.Runtime.InteropServices;
 using System.Security.Policy;
 using System.Security.Cryptography;
 using System.Xml.Linq;
+using System.Data.SQLite;
 
 namespace BackupAppService.BackupService
 {
@@ -17,15 +18,18 @@ namespace BackupAppService.BackupService
         private readonly IBackupTaskService backupTaskService;
         private readonly IBackupHistService backupHistService;
         private readonly IBackupLogService backupLogService;
+        private readonly ISqliteReaderService sqliteReaderService;
 
         public BackupService(
             IBackupTaskService backupTaskService, 
             IBackupHistService backupHistService, 
-            IBackupLogService backupLogService)
+            IBackupLogService backupLogService,
+            ISqliteReaderService sqliteReaderService)
         {
             this.backupTaskService = backupTaskService;
             this.backupHistService = backupHistService;
             this.backupLogService = backupLogService;
+            this.sqliteReaderService = sqliteReaderService;
         }
 
         public void Backup()
@@ -142,6 +146,17 @@ namespace BackupAppService.BackupService
                     }
                 }
             }
+        }
+
+        public void ResetFlagIsBackupInProcess()
+        {
+            string cmdUpdFlagIsBackupInProgress = @"
+            UPDATE SETTING SET IS_BACKUP_INPROCESS = '0' WHERE IS_BACKUP_INPROCESS = '1'
+            ";
+
+            SQLiteCommand sqlite_cmd = new SQLiteCommand();
+            sqlite_cmd.CommandText = cmdUpdFlagIsBackupInProgress;
+            sqliteReaderService.ExecuteQuery(sqlite_cmd);
         }
 
         #region private
@@ -441,18 +456,3 @@ namespace BackupAppService.BackupService
         #endregion
     }
 }
-
-//MailMessage message = new MailMessage();
-//SmtpClient smtp = new SmtpClient();
-//message.From = new MailAddress("FromMailAddress");
-//message.To.Add(new MailAddress("ToMailAddress"));
-//message.Subject = "Test";
-//message.IsBodyHtml = true; //to make message body as html
-//message.Body = htmlString;
-//smtp.Port = 587;
-//smtp.Host = "smtp.gmail.com"; //for gmail host
-//smtp.EnableSsl = true;
-//smtp.UseDefaultCredentials = false;
-//smtp.Credentials = new NetworkCredential("FromMailAddress", "password");
-//smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
-//smtp.Send(message);
