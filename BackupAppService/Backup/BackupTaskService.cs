@@ -45,8 +45,8 @@ namespace BackupAppService.BackupService
             )";
             Tuple<int, long> result = sqliteReaderService.ExecuteQuery(cmdUpdNextBackupDate);
 
-            if (result.Item1 > 0)
-            {
+            //if (result.Item1 > 0)
+            //{
                 string cmdInsBackupTask = @"
                 INSERT INTO BACKUP_TASK 
                 (
@@ -143,7 +143,7 @@ namespace BackupAppService.BackupService
                     sqlite_cmd.Parameters.AddWithValue("@backupTaskId", resultAddBackupTask.Item2);
                     sqliteReaderService.ExecuteQuery(sqlite_cmd);
                 }
-            }
+            //}
         }
 
         /// <summary>
@@ -156,7 +156,7 @@ namespace BackupAppService.BackupService
             @"SELECT 1 FROM BACKUP_TASK BT WHERE TASK_STATUS IN('R')",
             @"DROP TABLE IF EXISTS TEMP_BACKUP_TASK",
             @"CREATE TABLE TEMP_BACKUP_TASK AS
-            SELECT BACKUP_TASK_ID AS backupTaskId
+            SELECT BT.BACKUP_TASK_ID AS backupTaskId
             ,TASK_STATUS AS TaskStatus
             ,BACKUP_STORE_PERIOD_TYPE AS BackupStorePriodType
             ,BACKUP_STORE_NUM_DAYS AS BackupStoreNumDays

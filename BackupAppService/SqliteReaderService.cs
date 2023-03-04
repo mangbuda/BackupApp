@@ -14,7 +14,7 @@ namespace BackupAppService
 {
     public class SqliteReaderService : ISqliteReaderService
     {
-        public static string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+        public static string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         public static string dbFolderPath = Path.Combine(appDataPath, "BackupApp", "Resource");
         public static string dbFilePath = Path.Combine(dbFolderPath, "Data.db");
         public static string SqlConnection = $"Data Source={dbFilePath};Version=3;";
@@ -115,7 +115,7 @@ namespace BackupAppService
             {
                 for (int i = 0; i < cmd.Parameters.Count; i++)
                 {
-                    sqlite_cmd.Parameters.Add(sqlite_cmd.Parameters[i]);
+                    sqlite_cmd.Parameters.Add(cmd.Parameters[i]);
                 }
             }
 

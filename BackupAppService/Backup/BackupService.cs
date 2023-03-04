@@ -60,8 +60,8 @@ namespace BackupAppService.BackupService
                         bool driveAdded = false;
                         string bPath = "x://";
 
-                        if (string.IsNullOrEmpty(BackupPathSvrLoginUsername)
-                            && string.IsNullOrEmpty(BackupPathSvrLoginPwd))
+                        if (!string.IsNullOrEmpty(BackupPathSvrLoginUsername)
+                            && !string.IsNullOrEmpty(BackupPathSvrLoginPwd))
                         {
                             AddMappedDrive(
                                 connectionString,
@@ -76,7 +76,7 @@ namespace BackupAppService.BackupService
                         }
                         else
                         {
-                            bPath = "c://";
+                            bPath = "D:\\Backup\\DSF_20230301\\";
                         }
 
                         DataTable dtRes = BackupSql(connectionString, bPath);
@@ -89,8 +89,8 @@ namespace BackupAppService.BackupService
                                 BackupTaskId = BackupTaskId,
                                 SettingId = SettingId,
                                 HostnameDbSvr = dtRes.Rows[j]["HostnameDbServer"].ToString(),
-                                DbName = dtRes.Rows[j]["HostnameDbServer"].ToString(),
-                                BackupSize = float.Parse(dtRes.Rows[j]["HostnameDbServer"].ToString()),
+                                DbName = dtRes.Rows[j]["DbName"].ToString(),
+                                BackupSize = float.Parse(dtRes.Rows[j]["BackupSize"].ToString()),
                                 BackupStartTime = DateTime.Parse(dtRes.Rows[j]["BackupStartDate"].ToString()),
                                 BackupFinishTime = DateTime.Parse(dtRes.Rows[j]["BackupFinishDate"].ToString()),
                                 BackupFilename = dtRes.Rows[j]["PhysicalDeviceName"].ToString(),
@@ -153,8 +153,9 @@ namespace BackupAppService.BackupService
                 FROM sys.databases sd
                 WHERE sd.state_desc != 'OFFLINE'
                     AND sd.name NOT IN ('master', 'model', 'msdb', 'tempdb')
+                    AND sd.name LIKE '%REPORT%'
             ";
-            DataTable dtCompare = null;
+            DataTable dtCompare = new DataTable();
             using (SqlConnection sqlCon = new SqlConnection(connString))
             {
                 try
@@ -172,7 +173,7 @@ namespace BackupAppService.BackupService
                 }
             }
 
-            DataTable dtSql = null;
+            DataTable dtSql = new DataTable();
             if (dtCompare.Rows.Count > 0)
             {
                 string cmdBackup = @"
@@ -207,6 +208,7 @@ namespace BackupAppService.BackupService
                 ) fd
                 WHERE sd.state_desc != 'OFFLINE'
                     AND sd.name NOT IN ('master', 'model', 'msdb', 'tempdb')
+                    AND sd.name LIKE '%REPORT%'
                 ORDER BY sd.name 
 
             DECLARE db CURSOR LOCAL READ_ONLY FAST_FORWARD FOR  
@@ -371,7 +373,7 @@ namespace BackupAppService.BackupService
                     messageBody = messageBody + htmlTdStart + dtSource.Rows[i]["BackupStartTime"].ToString() + htmlTdEnd;
                     messageBody = messageBody + htmlTdStart + dtSource.Rows[i]["BackupFinishTime"].ToString() + htmlTdEnd;
                     messageBody = messageBody + htmlTdStart + "COMPLETE" + htmlTdEnd;
-                    messageBody = messageBody + htmlTdStart + (dtSource.Rows[i]["BackupStatus"].ToString() == "1"?"Backup Completed Successfully":"Backup Failed") + htmlTdEnd;
+                    messageBody = messageBody + htmlTdStart + (dtSource.Rows[i]["BackupStatus"].ToString() == "True"?"Backup Completed Successfully":"Backup Failed") + htmlTdEnd;
 
                     messageBody = messageBody + htmlTrEnd;
                 }
@@ -397,7 +399,7 @@ namespace BackupAppService.BackupService
                 message.Body = htmlString;
                 smtp.Port = Convert.ToInt32(email.SmtpPort);
                 smtp.Host = email.SmtpSvr;
-                smtp.EnableSsl = true;
+                smtp.EnableSsl = email.IsSslForSmtp == "1" ? true: false;
                 smtp.UseDefaultCredentials = false;
                 smtp.Credentials = new NetworkCredential(email.SmtpNotifEmailFrom, email.SmtpLoginPwd);
                 smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
